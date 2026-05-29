@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Private profile & resume (generate locally via resume_parser.py)
+profile_context.json
+resume_context.txt
+*.pdf
+
+# Local job database & browser sessions (cookies, login state)
+vaults/
+automation_session/
+playwright_session/
+
+# Environment & IDE
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+.pytest_cache/
+.mypy_cache/

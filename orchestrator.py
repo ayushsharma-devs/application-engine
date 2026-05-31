@@ -14,7 +14,7 @@ from platforms.internshala import InternshalaAdapter
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("Orchestrator")
 
-MAX_APPLICATIONS_PER_RUN = 3
+MAX_APPLICATIONS_PER_RUN = 15
 APPLICATION_COOLDOWN_SECONDS = (45.0, 120.0)
 PAGE_SCAN_COOLDOWN_SECONDS = (2.5, 6.0)
 

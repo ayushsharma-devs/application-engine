@@ -21,36 +21,26 @@ logger = logging.getLogger("Orchestrator.Internshala")
 ENABLE_SUBMIT = True  # Set to True so it actually submits the forms now!
 
 
-
 def sanitize_answer_text(text: str) -> str:
     if not text:
         return text
-    
-    # FIX 1: Unescape FIRST. Converts "&lt;br /&gt;" to "<br />" 
-    # so the regex filters below can actually see and catch them.
+
+    # 1. Unescape first to catch encoded blocks
     text = html_module.unescape(text)
-    
-    # Convert structural HTML tags into clean line breaks
-    text = re.sub(r"<br\s*/?\s*>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?p[^>]*>", "\n", text, flags=re.IGNORECASE)
-    
-    # Catch-all safety net for any other rogue HTML tags
+
+    # 2. Drop explicit tags
+    text = re.sub(r"<br\s*/?\s*>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?p[^>]*>", " ", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", "", text)
-    
-    # Normalize varied line endings
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    
-    # Collapse multiple inline spaces/tabs down to a single space
+
+    # 3. Force change all variants of newlines into standard spaces
+    text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+    # 4. Collapse multiple inline spaces down to a single space
     text = re.sub(r"[ \t]+", " ", text)
-    
-    # FIX 2: Clean whitespace per line without destroying double newlines (\n\n)
-    lines = [line.strip() for line in text.splitlines()]
-    text = "\n".join(lines)
-    
-    # Now safely collapse massive gaps down to standard double-spaced paragraphs
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    
+
     return text.strip()
+
 
 TEXT_FIELD_SKIP_PHRASES = (
     "upload cv",
@@ -89,7 +79,7 @@ class ApplicationTelemetry:
             "llm_mcq_time": 0.0,
             "llm_text_time": 0.0,
             "dom_interaction_time": 0.0,
-            "status": "Pending"
+            "status": "Pending",
         }
         self._start_time = None
 
@@ -98,7 +88,9 @@ class ApplicationTelemetry:
 
     def stop(self, status: str = "Success"):
         if self._start_time:
-            self.metrics["total_time"] = round(time.perf_counter() - self._start_time, 2)
+            self.metrics["total_time"] = round(
+                time.perf_counter() - self._start_time, 2
+            )
             self.metrics["status"] = status
             self._save_metrics()
 
@@ -110,14 +102,18 @@ class ApplicationTelemetry:
             yield
         finally:
             duration = time.perf_counter() - start
-            self.metrics[metric_key] = round(self.metrics.get(metric_key, 0.0) + duration, 2)
+            self.metrics[metric_key] = round(
+                self.metrics.get(metric_key, 0.0) + duration, 2
+            )
 
     def _save_metrics(self, filename="pipeline_metrics.jsonl"):
         """Appends structured run metrics safely to a localized jsonl schema."""
         try:
             with open(filename, "a", encoding="utf-8") as f:
                 f.write(json.dumps(self.metrics) + "\n")
-            logger.info(f"📊 Metrics saved for {self.application_id}: {self.metrics['total_time']}s total execution.")
+            logger.info(
+                f"📊 Metrics saved for {self.application_id}: {self.metrics['total_time']}s total execution."
+            )
         except Exception as e:
             logger.error(f"Failed to record performance block telemetry: {e}")
 
@@ -140,31 +136,35 @@ class InternshalaAdapter(BasePlatformAdapter):
             profile_text = profile_text.get("candidate_profile", str(profile_text))
         elif not profile_text:
             profile_text = str(profile_dict)
-        clean_profile = re.sub(r'\s+', ' ', profile_text).strip()
-        
-        clean_job = re.sub(r'\s+', ' ', job_description).strip()
+        clean_profile = re.sub(r"\s+", " ", profile_text).strip()
+
+        clean_job = re.sub(r"\s+", " ", job_description).strip()
         clean_job_lower = clean_job.lower()
-        
+
         boilerplate_anchors = [
-            "perks:", 
-            "activity on internshala:", 
-            "view full job description"
+            "perks:",
+            "activity on internshala:",
+            "view full job description",
         ]
-        
+
         cutoff_index = len(clean_job)
         for anchor in boilerplate_anchors:
             idx = clean_job_lower.find(anchor)
             if idx != -1 and idx < cutoff_index:
                 cutoff_index = idx
-                
+
         clean_job = clean_job[:cutoff_index].strip()
 
-        github_match = re.search(r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9-_./]+', clean_profile)
-        linkedin_match = re.search(r'(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9-_./]+', clean_profile)
-        
+        github_match = re.search(
+            r"(https?://)?(www\.)?github\.com/[a-zA-Z0-9-_./]+", clean_profile
+        )
+        linkedin_match = re.search(
+            r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9-_./]+", clean_profile
+        )
+
         github_url = github_match.group(0) if github_match else "Not provided"
         linkedin_url = linkedin_match.group(0) if linkedin_match else "Not provided"
-        
+
         if github_url != "Not provided" and not github_url.startswith("http"):
             github_url = "https://" + github_url
         if linkedin_url != "Not provided" and not linkedin_url.startswith("http"):
@@ -182,7 +182,7 @@ class InternshalaAdapter(BasePlatformAdapter):
         return await extractor.extract_page_listings(
             page, {"selectors": self.selectors}
         )
-    
+
     async def apply(self, page: Page, detail_url: str, profile_data: dict) -> str:
         logger.info(f"Navigating pipeline stream to target link: {detail_url}")
 
@@ -203,10 +203,17 @@ class InternshalaAdapter(BasePlatformAdapter):
         try:
             # 1. Track Browser Navigation and initial rendering
             with telemetry.track("browser_navigation_time"):
-                await page.goto(detail_url, wait_until="domcontentloaded", timeout=45000)
+                await page.goto(
+                    detail_url, wait_until="domcontentloaded", timeout=45000
+                )
                 await self._human_idle_read_page(page)
 
-                if await page.locator(self.selectors["already_applied_indicator"]).count() > 0:
+                if (
+                    await page.locator(
+                        self.selectors["already_applied_indicator"]
+                    ).count()
+                    > 0
+                ):
                     logger.info("Target job slot already exhibits an 'Applied' state.")
                     status = "Execution_Success"
                     return status
@@ -233,7 +240,7 @@ class InternshalaAdapter(BasePlatformAdapter):
                 if k not in ["selectors", "ollama_base_url", "platform_name"]
             }
             context_string = self.build_dense_context(clean_profile, job_desc)
-                
+
             logger.info("Processing flat evaluation logic frame...")
             mcq_questions = await self._extract_visible_mcqs(page)
             text_questions = await self._extract_visible_text_questions(page)
@@ -277,7 +284,7 @@ class InternshalaAdapter(BasePlatformAdapter):
             if text_questions:
                 logger.info(f"Processing {len(text_questions)} text field(s).")
                 prompt_list = [q["raw_text"] for q in text_questions]
-                
+
                 with telemetry.track("llm_text_time"):
                     llm_results = await synthesizer.match_responses(
                         prompts=prompt_list, context=context_string
@@ -286,8 +293,10 @@ class InternshalaAdapter(BasePlatformAdapter):
                 # 4. Phase C: Track Typing speed / human interaction frames
                 with telemetry.track("dom_interaction_time"):
                     for q in text_questions:
-                        ans_text = llm_results.get(q["raw_text"], "Please refer to resume.")
-                        await self._clear_and_type_humanized(q["element"], ans_text, page)
+                        ans_text = llm_results.get(
+                            q["raw_text"], "Please refer to resume."
+                        )
+                        await self.direct_paste_answer(q["element"], ans_text, page)
                         await asyncio.sleep(random.uniform(0.3, 0.6))
 
             # 5. Finalization and Verification tracking
@@ -419,19 +428,19 @@ class InternshalaAdapter(BasePlatformAdapter):
         )
         return " ".join(clean_label.split()).strip()
 
-    async def _clear_and_type_humanized(self, element: Locator, text: str, page: Page):
-        await element.scroll_into_view_if_needed()
+    async def direct_paste_answer(self, element, sanitized_text: str, page: Page):
+        """
+        Instantly injects the sanitized text directly into an extracted DOM element locator,
+        perfectly mirroring a human Ctrl+C / Ctrl+V clipboard action.
+        """
+        # 1. Click the element handle directly to gain focus
         await element.click()
-        select_all = "Meta+A" if sys.platform == "darwin" else "Control+A"
-        await page.keyboard.press(select_all)
-        await page.keyboard.press("Backspace")
 
-        chunk_size = random.randint(4, 9)
-        for offset in range(0, len(text), chunk_size):
-            chunk = text[offset : offset + chunk_size]
-            await element.press_sequentially(chunk, delay=random.uniform(35, 90))
-            if random.random() < 0.1:
-                await asyncio.sleep(random.uniform(0.2, 0.5))
+        # 2. Direct fill using the element handle instance
+        await element.fill(sanitized_text)
+
+        # 3. Fire a blur event via the global page keyboard instance
+        await page.keyboard.press("Tab")
 
     async def _handle_dropdown_humanized(
         self, name_attribute: str, selected_option: str, page: Page
@@ -555,7 +564,7 @@ class InternshalaAdapter(BasePlatformAdapter):
             return "Execution_Success"
 
         submit_btn = page.locator(self.selectors["final_submit_button"]).first
-        
+
         try:
             await submit_btn.wait_for(state="visible", timeout=3000)
         except Exception:
@@ -569,19 +578,23 @@ class InternshalaAdapter(BasePlatformAdapter):
 
         for attempt in range(6):
             await asyncio.sleep(1.5)
-            
+
             success_indicators = page.locator("text=/applied|submitted|success/i")
             if await success_indicators.count() > 0:
                 logger.info("Submission verified via on-page success text elements.")
                 return "Execution_Success"
 
             current_url = page.url.lower()
-            if any(path in current_url for path in ["dashboard", "applications", "applied"]):
+            if any(
+                path in current_url for path in ["dashboard", "applications", "applied"]
+            ):
                 logger.info(f"Submission verified via URL redirect target: {page.url}")
                 return "Execution_Success"
 
         current_url = page.url.lower()
-        if any(path in current_url for path in ["dashboard", "applications", "applied"]):
+        if any(
+            path in current_url for path in ["dashboard", "applications", "applied"]
+        ):
             logger.info("Submission verified via post-loop URL analysis.")
             return "Execution_Success"
 
@@ -603,27 +616,38 @@ class LLMResponseSynthesizer:
         self.timeout_config = httpx.Timeout(
             connect=10.0, read=300.0, write=10.0, pool=10.0
         )
-   
+
     async def generate_response(self, prompt: str, context: str) -> str:
         system_instructions = """
-        You are an advanced AI assistant acting strictly as Ayush Sharma, answering a specific application question for a technical internship.
+        You are an advanced AI assistant acting strictly as Ayush Sharma, a computer science student.
 
-        CRITICAL INSTRUCTIONS & CONSTRAINTS:
-        - Output raw, unformatted plain text ONLY. No Markdown, no HTML, no lists.
-        - LENGTH: strictly under 100 words.
-        - FACTUALITY: Base technical answers strictly on the `candidate_profile`.
-        - WILLINGNESS & LOGISTICS: If the question asks if you are "okay with", "comfortable with", or willing to comply with operational requirements (like WFH, using specific software, shifts, or relocation), ALWAYS answer affirmatively (e.g., "Yes, I am completely comfortable with this requirement and am ready to comply.")
-        - SPECIAL: If asked about stipend, availability, or immediate joining, answer affirmatively.
+CRITICAL OUTPUT REQUIREMENTS:
+1. You MUST output a single, valid JSON object matching the keys provided.
+2. Do NOT include ANY HTML tags or Markdown formatting. Use plain text only.
+3. Keep each individual answer concise and under 120 words.
+
+SMART FIELD HANDLING RULES:
+- FOR PORTFOLIO / WORK SAMPLE FIELDS: If a question asks for a portfolio link, website, or work samples, do NOT just output a raw URL. Instead, provide a multi-line professional pitch structured exactly like this:
+  "Main Hub: [Insert Github Link from Context]
+  
+  Featured Project Highlight:
+  - AMM Retriever: A Full-Stack Next.js + FastAPI system engineered with asynchronous data-ingestion pipelines (PyMuPDF) and Rank-BM25 lexical indexing to parse and query massive 1,850+ page aircraft manuals."
+  
+- FOR TECHNICAL EXPERIENCES: Base technical answers strictly on the candidate profile context.
+        - FOR OPERATIONAL LOGISTICS: Always answer affirmatively (willing to relocate, comfortable with shifts, etc.).
+
+        Expected Format:
+        {
+  "q_0": "Main Hub: https://github.com/ayushsharma-devs\n\nFeatured Project Highlight:\n- AMM Retriever: A Full-Stack Next.js and FastAPI application engineered with asynchronous data-ingestion pipelines using PyMuPDF and Rank-BM25 lexical indexing to parse and query massive 1,850+ page aircraft manuals.",
+  "q_1": "I am fully comfortable with the proposed stipend structure, immediate joining timeline, and all operational logistics mentioned for this internship position.",
+  "q_2": "Yes, I am completely comfortable with this requirement and am ready to comply with the team's working hours and scheduling protocols."
+}
         """
         payload = {
             "model": self.model,
             "prompt": f"Instructions:\n{system_instructions}\n\nContext:\n{context}\n\nQuestion:\n{prompt}",
             "stream": False,
-            "options": {
-                "temperature": 0.2,
-                "num_predict": 120,
-                "top_k": 40
-            }
+            "options": {"temperature": 0.2, "num_predict": 120, "top_k": 40},
         }
         async with httpx.AsyncClient(timeout=self.timeout_config) as client:
             try:
@@ -643,36 +667,33 @@ class LLMResponseSynthesizer:
         self, prompt: str, options: list[str], context: str
     ) -> str:
         options_block = "\n".join([f"- {opt}" for opt in options])
-        
+
         system_instructions = (
             "You are a rigid data-extraction bot. Analyze the context and select the EXACT truest choice from the options list. "
-            "You MUST output valid JSON only. Format: {\"selected_option\": \"exact text from options\"}."
-            "- WILLINGNESS & LOGISTICS: If the question asks if you are \"okay with\", \"comfortable with\", or willing to comply with operational requirements (like WFH, using specific software, shifts, or relocation), ALWAYS answer affirmatively."
+            'You MUST output valid JSON only. Format: {"selected_option": "exact text from options"}.'
+            '- WILLINGNESS & LOGISTICS: If the question asks if you are "okay with", "comfortable with", or willing to comply with operational requirements (like WFH, using specific software, shifts, or relocation), ALWAYS answer affirmatively.'
         )
-        
+
         payload = {
             "model": self.model,
             "prompt": f"Instructions:\n{system_instructions}\n\nContext:\n{context}\n\nQuestion:\n{prompt}\n\nOptions:\n{options_block}",
             "stream": False,
             "format": "json",
-            "options": {
-                "temperature": 0.0,
-                "num_predict": 40
-            }
+            "options": {"temperature": 0.0, "num_predict": 40},
         }
-        
+
         async with httpx.AsyncClient(timeout=self.timeout_config) as client:
             try:
                 response = await client.post(self.base_url, json=payload)
                 response.raise_for_status()
                 raw = response.json().get("response", "").strip()
-                
+
                 parsed_data = json.loads(raw)
                 ans = parsed_data.get("selected_option", "")
-                
+
                 if ans not in options and len(options) > 0:
                     return options[0]
-                    
+
                 return ans
             except httpx.HTTPStatusError as e:
                 print(f"API Error: {e.response.text}")

@@ -22,6 +22,17 @@ ENABLE_SUBMIT = True  # Set to True so it actually submits the forms now!
 
 
 def sanitize_answer_text(text: str) -> str:
+    """
+    Clean and normalize answer text extracted from HTML or LLM output.
+    
+    Performs HTML entity unescaping, removes HTML tags (including `<br>` and `<p>` variants), converts all newline variants to spaces, collapses repeated spaces and tabs into a single space, and trims leading/trailing whitespace.
+    
+    Parameters:
+        text (str): Input string that may contain HTML entities, tags, or irregular whitespace.
+    
+    Returns:
+        str: Normalized text with entities unescaped, tags removed, newlines replaced by spaces, consecutive whitespace collapsed, and trimmed.
+    """
     if not text:
         return text
 
@@ -71,6 +82,16 @@ def _label_matches_skip_phrase(label: str, phrases: tuple[str, ...]) -> bool:
 # --- TELEMETRY ENGINE FOR PIPELINE PERFORMANCE METRICS ---
 class ApplicationTelemetry:
     def __init__(self, application_id: str):
+        """
+        Initialize telemetry tracking for a specific application and prepare default timing metrics.
+        
+        Initializes self.application_id, a metrics dictionary with keys:
+        `application_id`, `total_time`, `browser_navigation_time`, `llm_mcq_time`,
+        `llm_text_time`, `dom_interaction_time`, and `status` (default "Pending"),
+        and sets the internal `_start_time` to None.
+        Parameters:
+            application_id (str): Unique identifier for the application being tracked.
+        """
         self.application_id = application_id
         self.metrics = {
             "application_id": application_id,
@@ -87,6 +108,16 @@ class ApplicationTelemetry:
         self._start_time = time.perf_counter()
 
     def stop(self, status: str = "Success"):
+        """
+        Record the elapsed time since `start()` and persist the telemetry metrics.
+        
+        Parameters:
+            status (str): Outcome label to record in the metrics (defaults to "Success").
+        
+        Detailed behavior:
+            If a start time was recorded via `start()`, computes and stores `total_time` (seconds, rounded to 2 decimals)
+            and sets the `status` field, then writes the metrics to persistent storage via `_save_metrics()`.
+        """
         if self._start_time:
             self.metrics["total_time"] = round(
                 time.perf_counter() - self._start_time, 2
@@ -96,7 +127,17 @@ class ApplicationTelemetry:
 
     @contextmanager
     def track(self, metric_key: str):
-        """Yields execution control and records precision intervals to the metrics profile."""
+        """
+        Measure the elapsed time of a with-block and add the duration (in seconds) to the adapter's metrics under the provided key.
+        
+        This function is a context manager: it records a high-resolution start time on entry, yields control to the caller, and on exit computes the elapsed time, rounding to two decimals and adding it to self.metrics[metric_key]. 
+        
+        Parameters:
+            metric_key (str): Key in the `metrics` mapping under which the measured duration will be accumulated.
+        
+        Returns:
+            contextmanager: A context manager that yields control to the caller and accumulates elapsed time into `self.metrics[metric_key]`.
+        """
         start = time.perf_counter()
         try:
             yield
@@ -107,7 +148,15 @@ class ApplicationTelemetry:
             )
 
     def _save_metrics(self, filename="pipeline_metrics.jsonl"):
-        """Appends structured run metrics safely to a localized jsonl schema."""
+        """
+        Append the current application's metrics as a single JSON object line to a JSONL file.
+        
+        Parameters:
+            filename (str): Path to the JSONL file to append to; each call writes one JSON object (self.metrics) followed by a newline.
+        
+        Notes:
+            Writes a single line containing the serialized `self.metrics` and logs success or an error on failure.
+        """
         try:
             with open(filename, "a", encoding="utf-8") as f:
                 f.write(json.dumps(self.metrics) + "\n")
@@ -131,6 +180,19 @@ class InternshalaAdapter(BasePlatformAdapter):
         }
 
     def build_dense_context(self, profile_dict: dict, job_description: str) -> str:
+        """
+        Compose a compact context string combining candidate profile details, a truncated job description, and detected GitHub/LinkedIn links.
+        
+        Parameters:
+            profile_dict (dict): Candidate metadata; function reads `candidate_profile` if present (may be a str or dict), otherwise falls back to a stringified `profile_dict`. Whitespace is collapsed.
+            job_description (str): Raw job description text; whitespace is collapsed and text is truncated at the first occurrence of common boilerplate anchors (e.g., "perks:", "activity on internshala:", "view full job description").
+        
+        Returns:
+            str: A formatted multi-section string containing:
+                - "CANDIDATE SKILLS & EXPERIENCE" with the cleaned profile text,
+                - "JOB REQUIREMENTS" with the cleaned/truncated job description,
+                - "DYNAMIC_LINKS" listing detected GitHub and LinkedIn URLs (prefixed with "https://" if found) or "Not provided" when absent.
+        """
         profile_text = profile_dict.get("candidate_profile", "")
         if isinstance(profile_text, dict):
             profile_text = profile_text.get("candidate_profile", str(profile_text))
@@ -178,12 +240,35 @@ class InternshalaAdapter(BasePlatformAdapter):
         return dense_context
 
     async def extract_jobs(self, page: Page, current_page_num: int) -> list[dict]:
+        """
+        Extracts job listing dictionaries from the provided listings page using the adapter's configured selectors.
+        
+        Parameters:
+            page (Page): Playwright page object representing the listings page to extract from.
+            current_page_num (int): Current page index (provided for context/logging; not required for extraction).
+        
+        Returns:
+            list[dict]: A list of job listing objects produced by the page extractor.
+        """
         await extractor.auto_scroll_page(page)
         return await extractor.extract_page_listings(
             page, {"selectors": self.selectors}
         )
 
     async def apply(self, page: Page, detail_url: str, profile_data: dict) -> str:
+        """
+        Apply to a single Internshala job listing by filling the application form and submitting it.
+        
+        Attempts to navigate to the job detail URL, fill visible MCQ and open-text fields using LLM-generated responses, perform humanized form interactions, finalize submission, and record telemetry for the application attempt.
+        
+        Parameters:
+            page (Page): Playwright page instance already connected to the target site.
+            detail_url (str): URL of the job detail page to apply to.
+            profile_data (dict): Candidate/profile configuration and optional adapter settings (for example, "ollama_base_url").
+        
+        Returns:
+            str: `"Execution_Success"` when the application flow is verified as submitted or already-applied; `"Execution_Error"` otherwise.
+        """
         logger.info(f"Navigating pipeline stream to target link: {detail_url}")
 
         # Extract internship tracking ID securely from the link target
@@ -411,6 +496,17 @@ class InternshalaAdapter(BasePlatformAdapter):
         return cleaned_mcqs
 
     async def _resolve_field_label(self, input_el: Locator) -> str:
+        """
+        Finds and returns the human-visible label text associated with a form input element.
+        
+        Searches the closest ancestor matching `.form-group` or `.assessment_question_container` for a `label`, `.assessment_question`, or `.control-label` element and returns its text with `.badge`, `.text-muted`, and `span` children removed and whitespace normalized. If no such ancestor label is found, uses the previous sibling's text as a fallback. Returns an empty string when no label text can be resolved.
+        
+        Parameters:
+            input_el (Locator): The Playwright Locator pointing to the input element whose label should be resolved.
+        
+        Returns:
+            str: The cleaned, single-line label text, or an empty string if no label is found.
+        """
         clean_label = await input_el.evaluate(
             """element => {
             const container = element.closest('.form-group, .assessment_question_container');
@@ -430,8 +526,12 @@ class InternshalaAdapter(BasePlatformAdapter):
 
     async def direct_paste_answer(self, element, sanitized_text: str, page: Page):
         """
-        Instantly injects the sanitized text directly into an extracted DOM element locator,
-        perfectly mirroring a human Ctrl+C / Ctrl+V clipboard action.
+        Focuses the given form element, fills it with the provided sanitized text, and sends a Tab key to trigger blur/validation handlers.
+        
+        Parameters:
+            element: Playwright Locator for the input or editable field to populate.
+            sanitized_text (str): Text to insert into the field; expected to be pre-sanitized.
+            page (Page): Playwright Page used to send the Tab key to the page.
         """
         # 1. Click the element handle directly to gain focus
         await element.click()
@@ -445,6 +545,16 @@ class InternshalaAdapter(BasePlatformAdapter):
     async def _handle_dropdown_humanized(
         self, name_attribute: str, selected_option: str, page: Page
     ) -> bool:
+        """
+        Attempt to select the given option from a dropdown identified by name or id, handling both native <select> elements and Chosen.js-style hidden selects.
+        
+        Parameters:
+            name_attribute (str): The `name` or `id` attribute used to locate the dropdown.
+            selected_option (str): The visible label text of the option to choose.
+        
+        Returns:
+            bool: `True` if the option was successfully selected, `False` otherwise.
+        """
         try:
             select_loc = page.locator(
                 f'select[name="{name_attribute}"], select[id="{name_attribute}"]'
@@ -559,6 +669,14 @@ class InternshalaAdapter(BasePlatformAdapter):
             await asyncio.sleep(random.uniform(0.4, 1.0))
 
     async def _finalize_submission_pass(self, page: Page) -> str:
+        """
+        Finalize the application submission by clicking the submit control and verifying success.
+        
+        If submission is disabled by configuration, records a dry-run success. Otherwise, waits for the configured submit button to become visible; if it is not visible, returns `"Execution_Error"`. Clicks the submit control and then attempts verification up to six times by (1) checking for on-page success text matches (`applied`, `submitted`, `success`) and (2) inspecting the current URL for any of the path keywords `dashboard`, `applications`, or `applied`. After the loop a final URL-based check is performed before returning a failure.
+        
+        Returns:
+            status (str): `"Execution_Success"` when submission is considered verified or dry-run mode is active, `"Execution_Error"` otherwise.
+        """
         if not ENABLE_SUBMIT:
             logger.info("Dry-run configured. Skipping definitive submit call.")
             return "Execution_Success"
@@ -606,6 +724,17 @@ class LLMResponseSynthesizer:
     def __init__(
         self, base_url: str = "http://localhost:11434", model: str = "llama3.2:3b"
     ):
+        """
+        Initialize the LLMResponseSynthesizer with a target Ollama-style generate endpoint and model.
+        
+        Parameters:
+            base_url (str): Base URL of the Ollama server or API. If it does not already end with "/api/generate", "/api/generate" is appended.
+            model (str): Model identifier to use for generation (e.g., "llama3.2:3b").
+        
+        Details:
+            Sets `self.base_url` to the normalized generate endpoint, stores `self.model`, and configures `self.timeout_config`
+            with connection/read/write/pool timeouts of 10.0/300.0/10.0/10.0 seconds respectively.
+        """
         base_url = base_url.rstrip("/")
         self.base_url = (
             f"{base_url}/api/generate"
@@ -618,6 +747,18 @@ class LLMResponseSynthesizer:
         )
 
     async def generate_response(self, prompt: str, context: str) -> str:
+        """
+        Generate a model-compliant JSON-formatted answer for a single prompt using the configured Ollama-style HTTP generate endpoint.
+        
+        The method sends the provided prompt and context combined with strict system instructions (requiring a single valid JSON object, no markup, concise answers, and special handling for portfolio/operational questions) to the adapter's generate API and returns the raw text produced by the model. On HTTP or other errors, the function returns an empty string.
+        
+        Parameters:
+            prompt (str): The user question or prompt to be answered.
+            context (str): Compressed candidate and job description context used to ground the response.
+        
+        Returns:
+            str: The raw response text returned by the model (expected to be a single valid JSON object); returns an empty string if an error occurred.
+        """
         system_instructions = """
         You are an advanced AI assistant acting strictly as Ayush Sharma, a computer science student.
 
@@ -666,6 +807,21 @@ SMART FIELD HANDLING RULES:
     async def generate_mcq_response(
         self, prompt: str, options: list[str], context: str
     ) -> str:
+        """
+        Choose the most appropriate option for a multiple-choice question using the provided context and model instructions.
+        
+        Parameters:
+            prompt (str): The question text to evaluate.
+            options (list[str]): List of exact option texts to choose from.
+            context (str): Additional context to inform the choice (e.g., job description, candidate profile).
+        
+        Returns:
+            str: The exact option text selected from `options`. If the model returns a value not present in `options` and `options` is non-empty, returns `options[0]`. Returns an empty string on error.
+        
+        Notes:
+            - For questions about willingness or operational logistics (phrases like "okay with", "comfortable with", or "willing to"), the selection favors an affirmative option when such an option is available.
+            - The function expects the model response to be valid JSON containing a `selected_option` field and applies the fallback behavior described above when necessary.
+        """
         options_block = "\n".join([f"- {opt}" for opt in options])
 
         system_instructions = (
@@ -703,6 +859,14 @@ SMART FIELD HANDLING RULES:
                 return ""
 
     async def match_responses(self, prompts: list[str], context: str) -> dict[str, str]:
+        """
+        Collect responses for a list of prompts and return a mapping from each prompt to its non-empty answer.
+        
+        Each prompt is processed and, if a non-empty response is produced, included in the returned dictionary. Blank or empty responses are omitted; insertion order follows the input prompts list.
+        
+        Returns:
+            dict[str, str]: Mapping of original prompt strings to their corresponding non-empty response strings.
+        """
         results = {}
         for prompt in prompts:
             resp = await self.generate_response(prompt, context)

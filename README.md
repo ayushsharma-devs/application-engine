@@ -20,17 +20,26 @@ orchestrator.py
 
 ## Setup
 
-# Clone and enter the project
+### Clone and enter the project
 cd "internship scraper"
 
-# Virtual environment (recommended)
+### Virtual environment (recommended)
 python -m venv .venv
 .venv\Scripts\activate # Windows
-# source .venv/bin/activate # macOS / Linux
+source .venv/bin/activate # macOS / Linux
+
 
 pip install -r requirements.txt
 playwright install chromium
 
+### Ollama
+
+Default API: `http://localhost:11434`, model `llama3.2` (see `LLMResponseSynthesizer` in `applier.py`). Verify Ollama is up:
+
+ollama pull llama3.2
+ollama serve
+
+##Step by Step Manual
 ### 1. Resume → profile context
 
 Place your resume PDF in the project root and set the filename in `resume_parser.py`:
@@ -47,7 +56,7 @@ This creates `profile_context.json` and `resume_context.txt` (both gitignored). 
 
 The first run opens a persistent browser profile in `automation_session/`. Log in manually when the window appears; cookies are reused on later runs.
 
-### 3. Configure search (optional)
+## 3. Configure search (optional)
 
 Edit `search_url` in `orchestrator.py` under `PLATFORM_REGISTRY["internshala"]` to match the filters you want (location, role, WFH, etc.).
 
@@ -79,12 +88,6 @@ Before enabling real submissions, review these in code:
 
 Human-like interaction (mouse movement, chunked typing, reading pauses, rate limits) lives in `HumanActor` inside `applier.py`. Keep daily volume low to reduce account risk.
 
-## Ollama
-
-Default API: `http://localhost:11434`, model `llama3.2` (see `LLMResponseSynthesizer` in `applier.py`). Verify Ollama is up:
-
-ollama pull llama3.2
-ollama serve
 
 ## What gets committed to Git
 

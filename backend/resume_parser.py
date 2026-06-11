@@ -6,7 +6,7 @@ from pathlib import Path
 from config import Settings
 import fitz  # PyMuPDF
 
-
+ 
 
 def extract_and_clean_resume(pdf_path: str) -> str:
     """

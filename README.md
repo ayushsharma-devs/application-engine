@@ -39,16 +39,12 @@ Default API: `http://localhost:11434`, model `llama3.2` (see `LLMResponseSynthes
 ollama pull llama3.2
 ollama serve
 
-##Step by Step Manual
+## Step by Step Manual
 ### 1. Resume → profile context
 
-Place your resume PDF in the project root and set the filename in `resume_parser.py`:
+Place your resume PDF in the project root and set the filename in `.env.example` file and rename it to `.env`, then add the file name of your resume:
 
-RESUME_INPUT = "your_resume.pdf"
-
-Then run:
-
-python resume_parser.py
+`RESUME_FILENAME=resume.pdf`
 
 This creates `profile_context.json` and `resume_context.txt` (both gitignored). The orchestrator loads `profile_context.json` automatically.
 
@@ -56,9 +52,9 @@ This creates `profile_context.json` and `resume_context.txt` (both gitignored). 
 
 The first run opens a persistent browser profile in `automation_session/`. Log in manually when the window appears; cookies are reused on later runs.
 
-## 3. Configure search (optional)
+## 3. Configure search 
 
-Edit `search_url` in `orchestrator.py` under `PLATFORM_REGISTRY["internshala"]` to match the filters you want (location, role, WFH, etc.).
+Edit `SEARCH_URL_LINKEDIN` in `.env` to match the filters you want (location, role, WFH, etc.).
 
 ### 4. Run
 
@@ -66,25 +62,29 @@ python orchestrator.py
 
 ## Project layout
 
-| File | Role |
-|------|------|
-| `orchestrator.py` | Entry point: scan pages, then apply pipeline |
-| `extractor.py` | Scroll listing pages and parse internship cards |
-| `memory.py` | Load/save `vaults/{platform}_vault.json`, dedupe by job ID |
-| `applier.py` | Form inspection, Ollama Q&A, human-like input (`HumanActor`) |
-| `resume_parser.py` | PDF → cleaned text → `profile_context.json` |
-| `vaults/` | Local job database (gitignored) |
-| `automation_session/` | Persistent browser profile / login (gitignored) |
+| File                  | Role                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `orchestrator.py`     | Entry point: scan pages, then apply pipeline                 |
+| `extractor.py`        | Scroll listing pages and parse internship cards              |
+| `memory.py`           | Load/save `vaults/{platform}_vault.json`, dedupe by job ID   |
+| `applier.py`          | Form inspection, Ollama Q&A, human-like input (`HumanActor`) |
+| `resume_parser.py`    | PDF → cleaned text → `profile_context.json`                  |
+| `vaults/`             | Local job database (gitignored)                              |
+| `automation_session/` | Persistent browser profile / login (gitignored)              |
+| `config.py`           | Loads all your custom settings from .env                     |
 
 ## Safety switches
 
 Before enabling real submissions, review these in code:
 
-| Setting | File | Default | Purpose |
-|---------|------|---------|---------|
-| `ENABLE_SUBMIT` | `applier.py` | `False` | When `True`, clicks the final Submit button |
-| `MAX_APPLICATIONS_PER_RUN` | `orchestrator.py` | `3` | Cap applications per run |
-| `APPLICATION_COOLDOWN_SECONDS` | `orchestrator.py` | `(45, 120)` | Random pause between applications |
+| Setting                    | Default                                                             | Purpose                                                                                              |
+| -------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ENABLE_SUBMIT`            | `False`                                                             | When `True`, clicks the final Submit button                                                          |
+| `MAX_APPLICATIONS_PER_RUN` | `3`                                                                 | Cap applications per run                                                                             |
+| `BLACK_LIST_KEYWORDS`      | `"unpaid", "free", "stipendless", "volunteer", "performance based"` | Specific keywords in job listings that you don't want to apply to                                    |
+| `RESUME_FILENAME`          | `resume.pdf`                                                        | File path to your latest resume that you saved to your system                                        |
+| `SEARCH_URL_INTERNSHALA`   | https://internshala.com/fresher-jobs/work-from-home/                | Your Internshala search link containing all your filters                                             |
+| `TARGET_PLATFORM`          | internshala                                                         | The platform you want to apply on (eventually will support platforms like LinkedIn, Wellfound, etc.) |
 
 Human-like interaction (mouse movement, chunked typing, reading pauses, rate limits) lives in `HumanActor` inside `applier.py`. Keep daily volume low to reduce account risk.
 

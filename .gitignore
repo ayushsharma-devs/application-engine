@@ -19,7 +19,7 @@ resume_context.txt
 vaults/
 automation_session/
 playwright_session/
-
+.obsidian
 # Environment & IDE
 .env
 .env.*

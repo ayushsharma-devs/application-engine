@@ -1,24 +1,22 @@
 {
-  
   "INTERNSHALA_METADATA": {
     "platform_name": "Internshala",
     "base_url": "https://internshala.com",
     "search_url": "https://internshala.com/internships/work-from-home-full-stack-development-internships-in-noida/fast-response-true/",
-    "selectors": {
-      "card_container": ".internship_meta",
-      "role_title": ".job-title-href",
-      "company_name": ".company-name-container, .company_name",
-      "stipend": ".stipend_container, .stipend",
-      "duration": ".item_body",
-      "apply_now_button": "#apply_now_button, button:has-text('Apply now'), .btn:has-text('Apply now')",
-      "already_applied_indicator": ".applied_notification, button:has-text('Already applied'), .btn:has-text('Already applied')",
-      "form_question_labels": "div.form-group:has(textarea) label.control-label, div.form-group:has(input[type='text']) label.control-label, .question-heading, .assessment_question",
-      "form_text_inputs": "div.form-group textarea.form-control, div.form-group input[type='text'].form-control",
-      "final_submit_button": "button:has-text('Submit'), input[type='submit']",
-      "job_description": ".text-container.about_project_text, .job_summary"
-    }
+    "card_container": ".container-fluid.individual_internship, .internship_meta",
+    "job_title": ".job-title-href, h3.heading_4_5.profile",
+    "company_name": ".company-name, .company_name",
+    "stipend": ".stipend",
+    "duration": ".row-1-item:has(i.ic-16-calendar) span",
+    "apply_now_button": "button:has-text('Apply now'), .btn:has-text('Apply now')",
+    "already_applied_indicator": ".applied_notification, button:has-text('Already applied')",
+    "form_question_labels": "div.form-group:has(textarea) label.control-label, .assessment_question",
+    "form_text_inputs": "div.form-group textarea.form-control",
+    "final_submit_button": "button:has-text('Submit'), input[type='submit']",
+    "job_description": ".text"
+  }
   
-},
+,
 
   "LINKEDIN_METADATA": {
     "platform_name": "LinkedIn",

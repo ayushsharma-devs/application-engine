@@ -14,15 +14,37 @@ async def auto_scroll_page(page: Page):
     await asyncio.sleep(0.5)
 
 async def extract_page_listings(page: Page, config: dict) -> list:
-    """Evaluates page DOM entirely within the browser context in a single IPC execution step
+    """Evaluates page DOM entirely within the browser context in a single IPC execution step."""
 
-    to maximize processing velocity and remove cross-process async loops.
-    """
-    selectors = config.get("selectors") or {}
+    # Normalize config so extractor supports BOTH:
+    # 1. flat metadata: {"card_container": "...", "job_title": "..."}
+    # 2. nested metadata: {"selectors": {"card_container": "...", "job_title": "..."}}
+    selectors = config.get("selectors", config)
+
+    # Backward-compatible alias support
+    if "job_title" not in selectors and "role_title" in selectors:
+        selectors["job_title"] = selectors["role_title"]
+
     required = {"card_container", "job_title", "company_name"}
-    missing = [k for k in required if not selectors.get(k)]
+
+    missing = [
+        k for k in required
+        if k not in selectors
+        or not str(selectors[k]).strip()
+        or str(selectors[k]).strip().lower() in {"null", "undefined"}
+    ]
+
     if missing:
-        raise ValueError(f"Missing listing selectors: {', '.join(missing)}")
+        raise ValueError(
+            f"[{config.get('platform_name', 'Unknown')}] Missing listing selectors: {', '.join(missing)}"
+        )
+
+    # Build browser-safe config
+    browser_config = {
+        "selectors": selectors,
+        "base_url": config.get("base_url", ""),
+        "platform_name": config.get("platform_name", "Unknown")
+    }
     # 1. Ship selectors to the browser context for ultra-low latency parsing
     try:
         raw_elements = await page.evaluate("""(cfg) => {
@@ -41,7 +63,7 @@ async def extract_page_listings(page: Page, config: dict) -> list:
                     duration: durationNode ? durationNode.innerText : 'Not Listed'
                 };
             });
-        }""", config)
+        }""", browser_config)
     except Exception as e:
         print(f"[{config.get('platform_name')} Extractor Error] Browser DOM evaluation crashed: {e}")
         raise
@@ -56,8 +78,8 @@ async def extract_page_listings(page: Page, config: dict) -> list:
         }
     else:
         blacklist_keywords = {str(kw).strip().lower() for kw in raw_blacklist if str(kw).strip()}
-    base_url = config.get("base_url", "").rstrip("/")
-    platform_name = config.get("platform_name", "Unknown")
+    base_url = browser_config.get("base_url", "").rstrip("/")
+    platform_name = browser_config.get("platform_name", "Unknown")
 
     for item in raw_elements:
         # Guard clause: Ensure essential data was returned from the DOM execution context

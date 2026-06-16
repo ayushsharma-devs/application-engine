@@ -38,19 +38,22 @@ STEALTH_INIT_SCRIPT = """
 })();
 """
 
-async def launch_stealth_context(p) -> BrowserContext:
-    viewport_width = random.randint(1240, 1440)
-    viewport_height = random.randint(760, 900)
+async def launch_persistent_browser_context(p) -> BrowserContext:
+    session_dir = Path("backend/browser_profiles/internshala")
+    session_dir.mkdir(parents=True, exist_ok=True)
+
     context = await p.chromium.launch_persistent_context(
-        user_data_dir="./automation_session",
+        user_data_dir=str(session_dir),
         headless=False,
-        viewport={"width": viewport_width, "height": viewport_height},
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        viewport={"width": 1366, "height": 768},
         locale="en-US",
         timezone_id="Asia/Kolkata",
-        args=["--disable-blink-features=AutomationControlled", "--no-sandbox", "--start-maximized"],
-        ignore_default_args=["--enable-automation"],
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--start-maximized",
+        ],
     )
+
     await context.add_init_script(STEALTH_INIT_SCRIPT)
     return context
 
@@ -65,6 +68,11 @@ async def run_discovery_phase(page: Page, adapter: any, vault: dict, target_plat
         
         try:
             await page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
+
+
+            if "login" in page.url.lower():
+                logger.warning("Login required. Please log in manually, then press Enter here.")
+                input("Press Enter after login...")
             await asyncio.sleep(random.uniform(1.0, 2.5))
 
             # DELEGATION: Let the adapter figure out how to scrape its own DOM framework
@@ -117,7 +125,7 @@ async def run_application_phase(page: Page, adapter: any, vault: dict, target_pl
     profile_data["ollama_base_url"] = Settings.OLLAMA_HOST
     applications_attempted = 0
 
-    for  job_data in vault.items():
+    for  job_id, job_data in vault.items():
         if job_data.get("status") not in APPLY_ELIGIBLE_STATUSES:
             continue
 
@@ -153,7 +161,7 @@ async def main():
 
     async with async_playwright() as p:
         # Launch browser context once to maximize resource efficiency across cycles
-        context = await launch_stealth_context(p)
+        context = await launch_persistent_browser_context(p)
         page = context.pages[0] if context.pages else await context.new_page()
 
         # Iterate through our targeted execution sequence loop cleanly

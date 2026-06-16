@@ -240,20 +240,13 @@ class InternshalaAdapter(BasePlatformAdapter):
         return dense_context
 
     async def extract_jobs(self, page: Page, current_page_num: int) -> list[dict]:
-        """
-        Extracts job listing dictionaries from the provided listings page using the adapter's configured selectors.
-        
-        Parameters:
-            page (Page): Playwright page object representing the listings page to extract from.
-            current_page_num (int): Current page index (provided for context/logging; not required for extraction).
-        
-        Returns:
-            list[dict]: A list of job listing objects produced by the page extractor.
-        """
         await extractor.auto_scroll_page(page)
-        return await extractor.extract_page_listings(
-            page, {"selectors": self.selectors}
-        )
+
+        return await extractor.extract_page_listings(page, {
+            "platform_name": self.selectors.get("platform_name", "Internshala"),
+            "base_url": self.selectors.get("base_url", "https://internshala.com"),
+            "selectors": self.selectors
+        })
 
     async def apply(self, page: Page, detail_url: str, profile_data: dict) -> str:
         """
@@ -300,7 +293,7 @@ class InternshalaAdapter(BasePlatformAdapter):
                     > 0
                 ):
                     logger.info("Target job slot already exhibits an 'Applied' state.")
-                    status = "Execution_Success"
+                    status = "Already_applied"
                     return status
 
                 apply_now_btn = page.locator(self.selectors["apply_now_button"]).first

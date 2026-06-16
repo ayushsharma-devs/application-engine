@@ -13,13 +13,12 @@ class BasePlatformAdapter(ABC):
         metadata_path = Path(__file__).parent / filename
         if not metadata_path.exists():
             raise FileNotFoundError(f"Platform selector metadata missing at: {metadata_path}")
-        
+    
         with open(metadata_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
-        # Pull the specific platform configuration out cleanly
-        platform_data = data.get(f"{self.platform_key.upper()}_METADATA", {})
-        return platform_data.get("selectors", {})
+    
+    # Just return the flat platform dictionary context directly
+        return data.get(f"{self.platform_key.upper()}_METADATA", {})
 
     @abstractmethod
     async def extract_jobs(self, page: Page, current_page_num: int) -> list[dict]:

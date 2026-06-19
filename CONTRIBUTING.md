@@ -10,7 +10,7 @@ First off, welcome to the project! This repository focuses on building local-fir
 2. **Fail Fast, Log Everything:** Handle exceptions explicitly and provide descriptive logs.
 3. **Protect the Main Branch:** Never commit directly to `main`. All changes should go through feature branches and Pull Requests.
 4. **Document Significant Changes:** Architecture changes and research notes should be written in Markdown (`.md`) files.
-
+ 
 ---
 
 ## 🚀 Git Workflow Strategy

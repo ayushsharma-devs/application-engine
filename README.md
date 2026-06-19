@@ -1,25 +1,24 @@
 # Job Application Automation
 
-A local-first tool for discovering opportunities and assisting with application workflows using browser automation and local LLMs.
+A privacy-focused, local-first automation framework for discovering opportunities and assisting with application workflows using browser automation and local LLMs.
 
 ## How it works
 
-backend/  
-├── orchestrator.py  (main handler, starts the program)
-├── extractor.py  (scroll + parse listings)
-├── memory.py  (dedupe + vaults/*.json)
-├── resume_parser.py  (parses and stores details from your resume as a profile_context.json file)
-├── applier.py  (maintains the applying pipeline)
-├── config.py  (Configures your custom variables based on .env)
-└── platforms/  
-├── base.py  (Connects all platforms through abstract classes)
-├── internshala.py  (Main handler for internshala, contains HumanActor, LLMSynthesizer, etc.)
-└── platform_metadata.json (Contains all the metadata/selectors for each platform)
-
+backend/
+├── orchestrator.py (main handler, starts the program)
+├── extractor.py (scroll + parse listings)
+├── memory.py (dedupe + vaults/*.json)
+├── resume_parser.py (parses and stores details from your resume as a profile_context.json file)
+├── applier.py (maintains the applying pipeline)
+├── config.py (Configures your custom variables based on .env)
+└── platforms/
+    ├── base.py (Connects all platforms through abstract classes)
+    ├── internshala.py (Main handler for internshala, contains HumanActor, LLMSynthesizer, etc.)
+    └── platform_metadata.json (Contains all the metadata/selectors for each platform)
 
 1. **Scan** — Opens your saved browser profile, walks search result pages, filters roles by keywords/stipend, and saves new listings to `vaults/internshala_vault.json`.
 2. **Apply** — For jobs with status `Discovered`, opens each detail page, reads custom questions, asks Ollama for answers from your profile, and types them with human-like delays. Submit is **off by default** until you enable it.
-3. **First run** — Creates automation_session/ —> Opens chromium —> Login manually to Internshala —> Cookies are stored —> internshala_vault.json is formed, profile_context.json is formed —> Future runs reuse session.
+3. **First run** — Creates automation_session/ —> Opens chromium —> Login manually to your target platform —> Cookies are stored —> vaults/{platform}_vault.json is formed, profile_context.json is formed —> Future runs reuse session.
 
 ## Features
 
@@ -33,6 +32,7 @@ backend/
 - Extensible metadata-driven selectors
 - No cloud dependencies
 - Privacy-focused
+
 ## Prerequisites
 
 - Python 3.10+
@@ -46,29 +46,33 @@ backend/
 `cd "internship-applier"`
 
 ### Virtual environment (recommended)
+```bash
 python -m venv .venv
+```
 #### Windows
 
-```
+```bash
 .venv\Scripts\activate
 ```
 
 #### macOS/Linux
 
-```
+```bash
 source .venv/bin/activate
 ```
 
-
+```bash
 pip install -r requirements.txt
 python -m playwright install chromium
+```
 
 ### Ollama
 
 Default API: `http://localhost:11434`, model `llama3.2` (see `LLMResponseSynthesizer` in `applier.py`). Verify Ollama is up:
+
 #### Start Ollama
 
-```
+```bash
 ollama serve
 ollama pull llama3.2
 ```
@@ -97,13 +101,15 @@ This creates `profile_context.json` and `resume_context.txt` (both gitignored). 
 
 The first run opens a persistent browser profile in `automation_session/`. Log in manually when the window appears; cookies are reused on later runs.
 
-## 3. Configure search 
+### 3. Configure search 
 
 Edit `SEARCH_URL_PRIMARY` in `.env` to match the filters you want (location, role, WFH, etc.).
 
 ### 4. Run
 
+```bash
 python orchestrator.py
+```
 
 ## Safety switches
 
@@ -118,8 +124,7 @@ Before enabling real submissions, review these in code:
 | `SEARCH_URL_PRIMARY`       | none                                                                | Your search link containing all your filters                                                         |
 | `TARGET_PLATFORM`          | none                                                                | The platform you want to apply on (eventually will support platforms like LinkedIn, Wellfound, etc.) |
 
-Human-like interaction (mouse movement, chunked typing, reading pauses, rate limits) lives in `HumanActor` inside `internshala.py`. Human-like interaction patterns (typing, pauses, mouse movement, and rate limiting) are implemented to provide a more natural workflow experience. Keep daily volume low to reduce account risk.
-
+Human-like interaction (mouse movement, chunked typing, reading pauses, rate limits) lives in `HumanActor` inside `internshala.py`. Human-like interaction patterns (typing, pauses, mouse movement, and rate limiting) are implemented to provide a more natural workflow experience. 
 
 ## What gets committed to Git
 
@@ -133,13 +138,21 @@ After `git add .`, run `git status` and confirm no resume or profile files appea
 
 ## Roadmap
 
-- [ ] Make the architecture more modular
+### Planned
+
 - [ ] LinkedIn adapter
 - [ ] Wellfound adapter
-- [ ] Plugin architecture 
+- [ ] Dashboard
+
+### In Progress
+
+- [ ] Plugin architecture
 - [ ] Resume optimization
-- [ ] Human approval queue
-- [ ] Dashboard and analytics
+- [ ] Move shared adapter utilities into `core/` modules
+- [x] Resume parser
+- [x] Local LLM integration
+- [x] Persistent sessions
+
 ## Disclaimer
 
 This project is a local-first browser automation and workflow assistance framework intended for educational and research purposes.
@@ -161,3 +174,7 @@ The authors do not endorse the violation of any platform policies or applicable 
 ## Privacy
 
 This project operates locally and does not collect, transmit, or store user data outside the user's own environment.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -1,123 +1,154 @@
-# Contributing to the AI Internship Applier
+# Contributing to Job Application Automation
 
-First off, welcome to the project! This repository is focused on building high-velocity, resilient automation engines for job application pipelines. Because we deal directly with live web forms, dynamic DOM structures, and anti-bot systems, maintaining strict engineering discipline is vital.
-
-Please read through this guide carefully before opening an issue or submitting a Pull Request (PR).
+First off, welcome to the project! This repository focuses on building local-first browser automation tools and reusable platform adapters. Because web pages change frequently, maintaining clean, modular code and good documentation is important.
 
 ---
 
 ## 🛠️ Code of Conduct & General Principles
 
-1. **Keep it Modular:** Write clean, asynchronous code. Avoid tightly coupling UI interaction logic with backend data state.
-2. **Fail Fast, Log Everything:** If a selector or network hook fails, handle the exception immediately and write descriptive error logging. No silent failures.
-3. **Protect the Main Branch:** Never commit directly to `main`. All changes must go through an isolated feature branch and a reviewed Pull Request.
-
----
-
-## 📋 Documentation Standards (.md Only)
-
-All internal wikis, research deep-dives, architectural maps, and debugging briefs must be written strictly in **Markdown (`.md`)**. 
-* Organize information logically using hierarchical headings (`##`, `###`).
-* Upload the documentation for every PR in this google drive folder: [Internship applier documentation](https://drive.google.com/drive/folders/1kOKyQa-hvYxuwU8O6BaUL0tkban4Pgm5?usp=sharing) .
-* Utilize code blocks with language syntax highlighting (e.g., \`\`\`python) for all code snippets or payload schemas.
-* Bullet points should be concise, scannable, and data-dense.
-
+1. **Keep it Modular:** Avoid tightly coupling UI interaction logic with backend state.
+2. **Fail Fast, Log Everything:** Handle exceptions explicitly and provide descriptive logs.
+3. **Protect the Main Branch:** Never commit directly to `main`. All changes should go through feature branches and Pull Requests.
+4. **Document Significant Changes:** Architecture changes and research notes should be written in Markdown (`.md`) files.
+ 
 ---
 
 ## 🚀 Git Workflow Strategy
 
-When you are assigned an issue or a bug to patch, follow these exact steps:
-#### Step 1: Set Up Your Sandbox (Only Done Once)
+### Step 1: Fork and Clone
 
-First, you click the **"Fork"** button on GitHub to create a copy of the repository under your own GitHub account. Then, clone _your fork_ to your local machine. It is good practice to create a separate Python environment so that the dependencies for this project don't clash with your own dependencies:
+First, fork the repository to your own GitHub account and clone your fork locally:
 
-```
-#Use the following commands to set up a Python venv before cloning
-cd your/working/directory
-**Windows**: `python -m venv .venv`
-**macOS / Linux**: `python3 -m venv .venv` 
-  
-- **macOS / Linux (Bash/Zsh)**: `source .venv/bin/activate`
-- **Windows (Command Prompt)**: `.venv\Scripts\activate.bat`
-- **Windows (PowerShell)**: `.\.venv\Scripts\Activate.ps1`
-- **Git Bash (Windows)**: `source .venv/Scripts/activate`
+```bash
+git clone https://github.com/YOUR_USERNAME/internship-applier.git
+cd internship-applier
 ```
 
-Bash
+### Step 2: Create a Virtual Environment
 
-```
-git clone https://github.com/YOUR_USERNAME/ai-internship-applier.git
-cd ai-internship-applier
-git init #intialize your directory with git
-```
+#### Windows
 
-#### Step 2: Create a Feature Branch (Before Writing Code)
-
-Never write code on the `main` branch. A branch is just an isolated workspace. Create and switch to a new branch specifically for this text-input bug:
-
-Bash
-
-```
-# This creates a new branch and switches your workspace into it
-git checkout -b bugfix/text-input-bug
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-_Analogy:_ Think of this like saving a duplicate copy of a document as `Project_Draft_v2.docx` so you don't ruin the original copy while experimenting.
+#### macOS / Linux
 
-#### Step 3: Check Your Changes (While Coding)
-
-As you modify files to fix the bug, check what files Git is tracking:
-
-Bash
-
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 ```
-# Shows you which files have been modified or added
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### Step 3: Create a Feature Branch
+
+Never work directly on `main`.
+
+```bash
+git checkout -b feature/my-feature
+```
+
+Examples:
+
+* `feature/wellfound-adapter`
+* `fix/selector-bug`
+* `docs/readme-update`
+
+---
+
+### Step 4: Check Your Changes
+
+```bash
 git status
 ```
 
-#### Step 4: Stage and Commit Your Patch
+---
 
-Once the bug is fixed and your code works locally, you need to snapshot your progress.
+### Step 5: Commit Your Work
 
-Bash
-
-```
-# 1. Stage ALL of your modified files to be committed
+```bash
 git add .
-
-# 2. Save the snapshot with a clear, descriptive message
-git commit -m "fix: resolve erratic HTML tag injection in rich-text inputs"
+git status
+git commit -m "feat: add new platform adapter"
 ```
 
-#### Step 5: Push Your Branch to GitHub
+Examples:
 
-Now, send your isolated local branch up to _your fork_ on GitHub:
+* `feat: add Wellfound adapter`
+* `fix: resolve selector parsing issue`
+* `refactor: extract HumanActor into core module`
+* `docs: improve README setup instructions`
 
-Bash
+---
 
+### Step 6: Push Your Branch
+
+```bash
+git push origin feature/my-feature
 ```
-git push origin bugfix/text-input-bug
+
+---
+
+### Step 7: Open a Pull Request
+
+1. Go to GitHub.
+2. Click **Compare & Pull Request**.
+3. Explain what changed and why.
+4. Submit the PR.
+
+---
+
+## 🚨 Emergency Commands
+
+### "Where am I?"
+
+```bash
+git branch
 ```
 
-#### Step 6: Submit the Pull Request (PR)
+### "What changed?"
 
-1. Go to the original repository page on GitHub.
-    
-2. You will see a prominent yellow banner that says: **"Compare & pull request"**. Click it.
-    
-3. Write a short description explaining how you fixed the bug, and click **"Create pull request"**.
-    
-
-### 🚨 Emergency Commands (When Things Go Wrong)
-
-
-- **"Where am I?"** — If you forget what branch you are currently coding on:
-Bash
-
- ` git branch`
-
-*   **"I messed up my uncommitted code, reset me to safety!"** — If you write broken code and just want to wipe your local changes out and revert back to the last clean commit:
-
+```bash
+git status
 ```
-git checkout -- .
+
+### "I broke something and want to discard local changes"
+
+```bash
+git restore .
 ```
+
+### "I want to temporarily save my work"
+
+```bash
+git stash
+```
+
+Restore it later:
+
+```bash
+git stash pop
+```
+
+---
+
+## First Contribution?
+
+Don't worry if you've never contributed to open source before. Feel free to ask questions before opening a PR.
+
+Good first issues are usually labeled:
+
+* `good first issue`
+* `documentation`
+* `bug`
+* `refactor`
+
+Welcome aboard 🚀

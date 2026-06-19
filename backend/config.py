@@ -16,9 +16,9 @@ class Settings:
     # Auto-resolve absolute paths to prevent execution location bugs
     BLACK_LISTKEYWORDS: str = os.getenv("BLACK_LIST_KEYWORDS", ",".join(blacklist_keywords))
     RESUME_PATH: Path = BASE_DIR / RESUME_INPUT
-    SEARCH_URL_INTERNSHALA: str = os.getenv("SEARCH_URL_INTERNSHALA", "https://internshala.com/fresher-jobs/work-from-home/")
+    SEARCH_URL_INTERNSHALA: str = os.getenv("SEARCH_URL_PRIMARY", "https://internshala.com/fresher-jobs/work-from-home/")
 
-    _raw_platforms: str = os.getenv("TARGET_PLATFORMS", "internshala")
+    _raw_platforms: str = os.getenv("TARGET_PLATFORM", "internshala")
     TARGET_PLATFORMS: list[str] = [p.strip().lower() for p in _raw_platforms.split(",") if p.strip()]
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))

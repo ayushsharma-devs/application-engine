@@ -20,8 +20,8 @@ First off, welcome to the project! This repository focuses on building local-fir
 First, fork the repository to your own GitHub account and clone your fork locally:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/internship-applier.git
-cd internship-applier
+git clone https://github.com/YOUR_USERNAME/application-engine.git
+cd application-engine
 ```
 
 ### Step 2: Create a Virtual Environment
